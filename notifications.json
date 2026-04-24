@@ -20,7 +20,7 @@
       "id": "aroma_update_alert",
       "type": "warning",
       "title": "Aroma Beta26 Compatibility",
-      "text": "\n Using Aroma Beta26? Please update the \n 'StyleMiiU' plugin via the Homebrew \n App Store to ensure continued functionality!",
+      "text": "\n \n Using Aroma Beta26? Please update the \n 'StyleMiiU' plugin via the Homebrew App \n Store to ensure continued functionality!",
       "duration": 15000,
       "maxDisplayCount": 3
     }

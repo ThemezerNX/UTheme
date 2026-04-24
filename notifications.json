@@ -15,7 +15,14 @@
       "text": "\n If you have any issues or suggestions, \n feel free to open an issue on the GitHub repository.",
       "duration": 10000,
       "maxDisplayCount": 1
+    },
+    {
+      "id": "aroma_update_alert",
+      "type": "warning",
+      "title": "Aroma Beta26 Compatibility",
+      "text": "\n Using Aroma Beta26? Please update the 'StyleMiiU' plugin \n via the Homebrew App Store to ensure continued functionality!",
+      "duration": 15000,
+      "maxDisplayCount": 3
     }
-    
   ]
 }

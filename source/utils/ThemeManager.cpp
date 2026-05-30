@@ -350,7 +350,7 @@ void ThemeManager::FetchThemes() {
     
     // 构造 GraphQL 查询 (包含图片URL) - 设置limit为200以获取更多主题
     std::string query = R"({
-        "query": "{ wiiuThemes(limit: 200) { nodes { uuid name description downloadCount saveCount updatedAt creator { username } downloadUrl collagePreview { thumbUrl hdUrl } launcherScreenshot { thumbUrl hdUrl } waraWaraPlazaScreenshot { thumbUrl hdUrl } launcherBgUrl waraWaraPlazaBgUrl tags { name } } } }"
+        "query": "{ wiiu { themes(paginationArgs: { limit: 200 }) { nodes { uuid name description downloadCount saveCount updatedAt creator { username } downloadUrl collagePreview { thumbUrl hdUrl } launcherScreenshot { thumbUrl hdUrl } waraWaraPlazaScreenshot { thumbUrl hdUrl } launcherBgUrl waraWaraPlazaBgUrl tags { name } } } }"
     })";
     
     // 使用 DownloadQueue 进行异步请求
@@ -934,7 +934,7 @@ void ThemeManager::CheckForUpdates() {
     
     // 构造 GraphQL 查询 (只获取基本信息用于对比)
     std::string query = R"({
-        "query": "{ wiiuThemes(limit: 50) { nodes { uuid updatedAt } } }"
+        "query": "{ wiiu { themes(paginationArgs: { limit: 50 }) { nodes { uuid updatedAt } } }"
     })";
     
     std::string response = FetchUrl(THEMEZER_GRAPHQL_URL, query);

@@ -188,25 +188,31 @@ bool ThemeManager::ParseThemezerResponse(const std::string& jsonData) {
             return false;
         }
         
-        // GraphQL 响应格式: { "data": { "wiiuThemes": { "nodes": [...] } } }
+        // GraphQL 响应格式: { "data": { "wiiu": { "themes": { "nodes": [...] } } } }
         if (!root.HasMember("data") || !root["data"].IsObject()) {
             DEBUG_FUNCTION_LINE("Missing 'data' field");
             return false;
         }
         
         const auto& data = root["data"];
-        if (!data.HasMember("wiiuThemes") || !data["wiiuThemes"].IsObject()) {
-            DEBUG_FUNCTION_LINE("Missing 'wiiuThemes' field");
+        if (!data.HasMember("wiiu") || !data["wiiu"].IsObject()) {
+            DEBUG_FUNCTION_LINE("Missing 'wiiu' field");
             return false;
         }
         
-        const auto& wiiuThemes = data["wiiuThemes"];
-        if (!wiiuThemes.HasMember("nodes") || !wiiuThemes["nodes"].IsArray()) {
+        const auto& wiiu = data["wiiu"];
+        if (!wiiu.HasMember("themes") || !wiiu["themes"].IsObject()) {
+            DEBUG_FUNCTION_LINE("Missing 'themes' field");
+            return false;
+        }
+        
+        const auto& themesData = wiiu["themes"];
+        if (!themesData.HasMember("nodes") || !themesData["nodes"].IsArray()) {
             DEBUG_FUNCTION_LINE("Missing 'nodes' array");
             return false;
         }
         
-        const auto& nodes = wiiuThemes["nodes"];
+        const auto& nodes = themesData["nodes"];
         
         // 辅助函数: 解析 ImageSizes 对象
         auto parseImageSizes = [](const rapidjson::Value& imgObj) -> ThemeImage {
@@ -349,8 +355,9 @@ void ThemeManager::FetchThemes() {
     FileLogger::GetInstance().LogInfo("Starting async FetchThemes");
     
     // 构造 GraphQL 查询 (包含图片URL) - 设置limit为200以获取更多主题
+    // API 已更新: wiiuThemes 已改为 wiiu { themes(paginationArgs: { limit, page }) }
     std::string query = R"({
-        "query": "{ wiiuThemes(limit: 200) { nodes { uuid name description downloadCount saveCount updatedAt creator { username } downloadUrl collagePreview { thumbUrl hdUrl } launcherScreenshot { thumbUrl hdUrl } waraWaraPlazaScreenshot { thumbUrl hdUrl } launcherBgUrl waraWaraPlazaBgUrl tags { name } } } }"
+        "query": "{ wiiu { themes(paginationArgs: { limit: 500, page: 1 }) { nodes { uuid name description downloadCount saveCount updatedAt creator { username } downloadUrl collagePreview { thumbUrl hdUrl } launcherScreenshot { thumbUrl hdUrl } waraWaraPlazaScreenshot { thumbUrl hdUrl } launcherBgUrl waraWaraPlazaBgUrl tags { name } } } } }"
     })";
     
     // 使用 DownloadQueue 进行异步请求
@@ -934,7 +941,7 @@ void ThemeManager::CheckForUpdates() {
     
     // 构造 GraphQL 查询 (只获取基本信息用于对比)
     std::string query = R"({
-        "query": "{ wiiuThemes(limit: 50) { nodes { uuid updatedAt } } }"
+        "query": "{ wiiu { themes(paginationArgs: { limit: 50, page: 1 }) { nodes { uuid updatedAt } } } }"
     })";
     
     std::string response = FetchUrl(THEMEZER_GRAPHQL_URL, query);
@@ -955,12 +962,18 @@ void ThemeManager::CheckForUpdates() {
         }
         
         const auto& data = root["data"];
-        if (!data.HasMember("wiiuThemes") || !data["wiiuThemes"].HasMember("nodes")) {
+        if (!data.HasMember("wiiu") || !data["wiiu"].IsObject()) {
             mCheckingUpdates = false;
             return;
         }
         
-        const auto& nodes = data["wiiuThemes"]["nodes"];
+        const auto& wiiu = data["wiiu"];
+        if (!wiiu.HasMember("themes") || !wiiu["themes"].HasMember("nodes")) {
+            mCheckingUpdates = false;
+            return;
+        }
+        
+        const auto& nodes = wiiu["themes"]["nodes"];
         if (!nodes.IsArray()) {
             mCheckingUpdates = false;
             return;

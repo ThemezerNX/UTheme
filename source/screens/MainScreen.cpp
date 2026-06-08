@@ -230,7 +230,12 @@ void MainScreen::Draw() {
             }
             break;
         case STATE_CHECK_STYLEMIIU:
-            // 检查 StyleMiiU 插件状态
+        case STATE_WAIT_PLUGIN:
+            // 异步下载插件中
+            if (PluginDownloader::GetInstance().IsDownloading()) {
+                DrawLoadingSpinner(cardX + cardW/2, cardY + 120, 80, (mFrameCount % 60) / 60.0f);
+                Gfx::Print(cardX + cardW/2, cardY + 220, 44, Gfx::COLOR_TEXT, _("common.downloading"), Gfx::ALIGN_CENTER);
+            }
             break;
         case STATE_LOAD_MENU:
             DrawLoadingSpinner(cardX + cardW/2, cardY + 120, 80, (mFrameCount % 60) / 60.0f);
@@ -428,11 +433,21 @@ bool MainScreen::Update(Input &input) {
             }
         }
         case STATE_CHECK_STYLEMIIU:
-            // 检查并下载 StyleMiiU 插件 (仅在 Mocha 可用时运行)
+            // 启动异步下载 StyleMiiU 插件 (仅在 Mocha 可用时)
             if (sMochaAvailable) {
-                FileLogger::GetInstance().LogInfo("Checking for StyleMiiU plugin...");
-                PluginDownloader::GetInstance().CheckAndDownloadStyleMiiU();
+                FileLogger::GetInstance().LogInfo("Starting async StyleMiiU plugin download...");
+                PluginDownloader::GetInstance().StartDownload();
             }
+            mState = STATE_WAIT_PLUGIN;
+            break;
+        case STATE_WAIT_PLUGIN:
+            // 等待异步插件下载完成
+            PluginDownloader::GetInstance().Update();
+            if (sMochaAvailable && PluginDownloader::GetInstance().IsDownloading()) {
+                // 仍在下载中,继续等待
+                break;
+            }
+            // 下载完成或不需要下载
             mState = STATE_LOAD_MENU;
             break;
         case STATE_LOAD_MENU:

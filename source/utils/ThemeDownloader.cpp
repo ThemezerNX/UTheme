@@ -233,31 +233,33 @@ void ThemeDownloader::DownloadThreadFunc(const std::string& url, const std::stri
     FileLogger::GetInstance().LogInfo("Starting async download for: %s", themeName.c_str());
     
     // 检查磁盘空间
-    long long availableMB = GetAvailableDiskSpaceMB();
-    
-    if (availableMB < 0) {
-        // 无法检测磁盘空间
-        mErrorMessage = "[[disk_space_check_failed]]";
-        FileLogger::GetInstance().LogError("Failed to check disk space");
-        mState.store(DOWNLOAD_ERROR);
-        if (mStateCallback) {
-            mStateCallback(DOWNLOAD_ERROR, mErrorMessage);
-        }
-        return;
-    }
-    
-    FileLogger::GetInstance().LogInfo("Available disk space: %lld MB", availableMB);
-    
-    if (availableMB < 100) {
-        // 磁盘空间不足
-        mErrorMessage = "[[disk_space_low:" + std::to_string(availableMB) + "]]";
-        FileLogger::GetInstance().LogWarning("Disk space low: %lld MB", availableMB);
-        mState.store(DOWNLOAD_ERROR);
-        if (mStateCallback) {
-            mStateCallback(DOWNLOAD_ERROR, mErrorMessage);
-        }
-        return;
-    }
+    // 检查磁盘空间会导致背景音乐卡顿 暂时注释掉！
+
+    // long long availableMB = GetAvailableDiskSpaceMB();
+    // 
+    // if (availableMB < 0) {
+    //     // 无法检测磁盘空间
+    //     mErrorMessage = "[[disk_space_check_failed]]";
+    //     FileLogger::GetInstance().LogError("Failed to check disk space");
+    //     mState.store(DOWNLOAD_ERROR);
+    //     if (mStateCallback) {
+    //         mStateCallback(DOWNLOAD_ERROR, mErrorMessage);
+    //     }
+    //     return;
+    // }
+    // 
+    // FileLogger::GetInstance().LogInfo("Available disk space: %lld MB", availableMB);
+    // 
+    // if (availableMB < 100) {
+    //     // 磁盘空间不足
+    //     mErrorMessage = "[[disk_space_low:" + std::to_string(availableMB) + "]]";
+    //     FileLogger::GetInstance().LogWarning("Disk space low: %lld MB", availableMB);
+    //     mState.store(DOWNLOAD_ERROR);
+    //     if (mStateCallback) {
+    //         mStateCallback(DOWNLOAD_ERROR, mErrorMessage);
+    //     }
+    //     return;
+    // }
     
     // 调试: 打印主题名的十六进制
     std::string hexDump;

@@ -4,146 +4,254 @@
 #include "../Screen.hpp"
 #include <curl/curl.h>
 #include <cstdio>
+#include <cstring>
 #include <sys/stat.h>
-#include <sys/types.h>
 
 PluginDownloader& PluginDownloader::GetInstance() {
     static PluginDownloader instance;
     return instance;
 }
 
-bool PluginDownloader::CheckAndDownloadStyleMiiU() {
-    // 使用动态环境路径而不是硬编码
-    std::string envPath = Utils::GetEnvironmentPath();
-    if (envPath.empty()) {
-        FileLogger::GetInstance().LogError("[PluginDownloader] Failed to get environment path - Mocha not available?");
-        return false;
-    }
-    
-    std::string pluginPathStr = envPath + "/plugins/stylemiiu.wps";
-    const char* pluginPath = pluginPathStr.c_str();
-    const char* downloadUrl = "https://github.com/Themiify-hb/StyleMiiU-Plugin/releases/latest/download/stylemiiu.wps";
-    
-    FileLogger::GetInstance().LogInfo("[PluginDownloader] Checking for StyleMiiU plugin at: %s", pluginPath);
-    
-    // 检查文件是否存在
-    struct stat st;
-    if (stat(pluginPath, &st) == 0) {
-        FileLogger::GetInstance().LogInfo("[PluginDownloader] StyleMiiU plugin already exists");
-        return true;
-    }
-    
-    FileLogger::GetInstance().LogInfo("[PluginDownloader] StyleMiiU plugin not found, downloading...");
-    
-    // 下载插件
-    bool success = DownloadFile(downloadUrl, pluginPathStr);
-    
-    if (success) {
-        FileLogger::GetInstance().LogInfo("[PluginDownloader] StyleMiiU plugin downloaded successfully");
-        Screen::GetBgmNotification().ShowNowPlaying("StyleMiiU Plugin Downloaded");
-    } else {
-        FileLogger::GetInstance().LogError("[PluginDownloader] Failed to download StyleMiiU plugin");
-        Screen::GetBgmNotification().ShowError("Failed to download StyleMiiU plugin");
-    }
-    
-    return success;
+PluginDownloader::PluginDownloader() 
+    : mState(PLUGIN_IDLE)
+    , mProgress(0.0f)
+    , mDownloadedBytes(0)
+    , mTotalBytes(0)
+    , mCancelRequested(false)
+    , mThreadRunning(false) {
+    curl_global_init(CURL_GLOBAL_DEFAULT);
+    FileLogger::GetInstance().LogInfo("[PluginDownloader] Initialized");
 }
 
-size_t PluginDownloader::WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    size_t totalSize = size * nmemb;
-    FILE* file = static_cast<FILE*>(userp);
+PluginDownloader::~PluginDownloader() {
+    Cancel();
     
-    if (file) {
-        return fwrite(contents, 1, totalSize, file);
+    if (mDownloadThread.joinable()) {
+        mDownloadThread.join();
     }
     
-    return totalSize;
+    curl_global_cleanup();
+    FileLogger::GetInstance().LogInfo("[PluginDownloader] Destroyed");
 }
 
-bool PluginDownloader::DownloadFile(const std::string& url, const std::string& destPath) {
-    FileLogger::GetInstance().LogInfo("[PluginDownloader] Downloading from: %s", url.c_str());
-    FileLogger::GetInstance().LogInfo("[PluginDownloader] Destination: %s", destPath.c_str());
-    
-    // 确保目录存在
-    std::string dirPath = destPath.substr(0, destPath.find_last_of('/'));
-    FileLogger::GetInstance().LogInfo("[PluginDownloader] Creating directory: %s", dirPath.c_str());
-    
-    // 创建多层目录
-    size_t pos = 0;
-    while ((pos = dirPath.find('/', pos + 1)) != std::string::npos) {
-        std::string subDir = dirPath.substr(0, pos);
-        struct stat st;
-        if (stat(subDir.c_str(), &st) != 0) {
-            mkdir(subDir.c_str(), 0777);
+void PluginDownloader::StartDownload() {
+    // 如果正在下载,先取消
+    if (IsDownloading()) {
+        FileLogger::GetInstance().LogInfo("[PluginDownloader] Already downloading, canceling previous");
+        Cancel();
+        
+        if (mDownloadThread.joinable()) {
+            mDownloadThread.join();
         }
     }
-    // 创建最后一层目录
+    
+    // 使用动态环境路径
+    std::string envPath = Utils::GetEnvironmentPath();
+    if (envPath.empty()) {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mErrorMessage = "Failed to get environment path";
+        FileLogger::GetInstance().LogError("[PluginDownloader] %s", mErrorMessage.c_str());
+        mState.store(PLUGIN_ERROR);
+        if (mCompletionCallback) {
+            mCompletionCallback(false, mErrorMessage);
+        }
+        return;
+    }
+    
+    mDestPath = envPath + "/plugins/stylemiiu.wps";
+    
+    // 检查文件是否已存在
+    struct stat st;
+    if (stat(mDestPath.c_str(), &st) == 0) {
+        FileLogger::GetInstance().LogInfo("[PluginDownloader] StyleMiiU plugin already exists");
+        mState.store(PLUGIN_COMPLETE);
+        mProgress.store(1.0f);
+        std::lock_guard<std::mutex> lock(mMutex);
+        if (mCompletionCallback) {
+            mCompletionCallback(true, mDestPath);
+        }
+        return;
+    }
+    
+    mCancelRequested.store(false);
+    mState.store(PLUGIN_DOWNLOADING);
+    mProgress.store(0.0f);
+    mDownloadedBytes.store(0);
+    mTotalBytes.store(0);
+    mErrorMessage.clear();
+    
+    FileLogger::GetInstance().LogInfo("[PluginDownloader] Starting async download to: %s", mDestPath.c_str());
+    
+    // 启动后台线程
+    mThreadRunning = true;
+    mDownloadThread = std::thread([this]() {
+        PerformDownload();
+        mThreadRunning = false;
+    });
+}
+
+void PluginDownloader::Cancel() {
+    if (IsDownloading()) {
+        FileLogger::GetInstance().LogInfo("[PluginDownloader] Canceling download");
+        mCancelRequested.store(true);
+        mState.store(PLUGIN_CANCELLED);
+    }
+}
+
+void PluginDownloader::SetCompletionCallback(std::function<void(bool, const std::string&)> callback) {
+    std::lock_guard<std::mutex> lock(mMutex);
+    mCompletionCallback = callback;
+}
+
+void PluginDownloader::Update() {
+    // 状态由后台线程更新,这里不需要额外处理
+}
+
+int PluginDownloader::ProgressCallback(void* clientp, curl_off_t dltotal, curl_off_t dlnow, 
+                                        curl_off_t ultotal, curl_off_t ulnow) {
+    PluginDownloader* downloader = static_cast<PluginDownloader*>(clientp);
+    
+    if (downloader->mCancelRequested.load()) {
+        return 1;
+    }
+    
+    if (dltotal > 0) {
+        downloader->mTotalBytes.store(dltotal);
+        downloader->mDownloadedBytes.store(dlnow);
+        float progress = (float)dlnow / (float)dltotal;
+        downloader->mProgress.store(progress);
+    }
+    
+    return 0;
+}
+
+void PluginDownloader::PerformDownload() {
+    const char* downloadUrl = "https://github.com/Themiify-hb/StyleMiiU-Plugin/releases/latest/download/stylemiiu.wps";
+    std::string tempPath = mDestPath + ".tmp";
+    
+    FileLogger::GetInstance().LogInfo("[PluginDownloader] Background download started: %s -> %s", 
+        downloadUrl, mDestPath.c_str());
+    
+    // 确保目录存在
+    std::string dirPath = mDestPath.substr(0, mDestPath.find_last_of('/'));
     struct stat st;
     if (stat(dirPath.c_str(), &st) != 0) {
+        // 递归创建目录
+        size_t pos = 0;
+        while ((pos = dirPath.find('/', pos + 1)) != std::string::npos) {
+            std::string subDir = dirPath.substr(0, pos);
+            if (stat(subDir.c_str(), &st) != 0) {
+                mkdir(subDir.c_str(), 0777);
+            }
+        }
         mkdir(dirPath.c_str(), 0777);
     }
     
-    // 使用临时文件
-    std::string tempPath = destPath + ".tmp";
-    
-    // 打开文件
+    // 打开临时文件
     FILE* file = fopen(tempPath.c_str(), "wb");
     if (!file) {
-        FileLogger::GetInstance().LogError("[PluginDownloader] Failed to create file: %s", tempPath.c_str());
-        return false;
+        std::lock_guard<std::mutex> lock(mMutex);
+        mErrorMessage = "Failed to create temporary file";
+        FileLogger::GetInstance().LogError("[PluginDownloader] %s", mErrorMessage.c_str());
+        mState.store(PLUGIN_ERROR);
+        Screen::GetBgmNotification().ShowError("Plugin download failed: " + mErrorMessage);
+        if (mCompletionCallback) {
+            mCompletionCallback(false, mErrorMessage);
+        }
+        return;
     }
     
-    // 初始化 CURL
+    // 初始化CURL
     CURL* curl = curl_easy_init();
     if (!curl) {
-        FileLogger::GetInstance().LogError("[PluginDownloader] Failed to initialize CURL");
+        std::lock_guard<std::mutex> lock(mMutex);
+        mErrorMessage = "Failed to initialize CURL";
+        FileLogger::GetInstance().LogError("[PluginDownloader] %s", mErrorMessage.c_str());
         fclose(file);
         remove(tempPath.c_str());
-        return false;
+        mState.store(PLUGIN_ERROR);
+        Screen::GetBgmNotification().ShowError("Plugin download failed: " + mErrorMessage);
+        if (mCompletionCallback) {
+            mCompletionCallback(false, mErrorMessage);
+        }
+        return;
     }
     
-    // 配置 CURL
-    curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
+    // 配置CURL
+    curl_easy_setopt(curl, CURLOPT_URL, downloadUrl);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, fwrite);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, ProgressCallback);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, this);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
     curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
-    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L); // 5分钟超时
+    curl_easy_setopt(curl, CURLOPT_TIMEOUT, 300L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "UTheme/1.0");
     
-    // 执行下载
+    // 执行下载(在后台线程中,不影响UI)
     CURLcode res = curl_easy_perform(curl);
     
-    // 获取 HTTP 状态码
+    fclose(file);
+    
+    // 获取HTTP状态码
     long httpCode = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
     
-    // 清理
     curl_easy_cleanup(curl);
-    fclose(file);
     
     // 检查结果
     if (res != CURLE_OK) {
-        FileLogger::GetInstance().LogError("[PluginDownloader] Download failed: %s", curl_easy_strerror(res));
+        std::lock_guard<std::mutex> lock(mMutex);
+        mErrorMessage = curl_easy_strerror(res);
+        FileLogger::GetInstance().LogError("[PluginDownloader] Download failed: %s", mErrorMessage.c_str());
         remove(tempPath.c_str());
-        return false;
+        mState.store(PLUGIN_ERROR);
+        Screen::GetBgmNotification().ShowError("Plugin download failed: " + mErrorMessage);
+        if (mCompletionCallback) {
+            mCompletionCallback(false, mErrorMessage);
+        }
+        return;
     }
     
     if (httpCode != 200) {
-        FileLogger::GetInstance().LogError("[PluginDownloader] HTTP error: %ld", httpCode);
+        std::lock_guard<std::mutex> lock(mMutex);
+        mErrorMessage = "HTTP error: " + std::to_string(httpCode);
+        FileLogger::GetInstance().LogError("[PluginDownloader] %s", mErrorMessage.c_str());
         remove(tempPath.c_str());
-        return false;
+        mState.store(PLUGIN_ERROR);
+        Screen::GetBgmNotification().ShowError(mErrorMessage);
+        if (mCompletionCallback) {
+            mCompletionCallback(false, mErrorMessage);
+        }
+        return;
     }
     
     // 重命名临时文件
-    remove(destPath.c_str());
-    if (rename(tempPath.c_str(), destPath.c_str()) != 0) {
-        FileLogger::GetInstance().LogError("[PluginDownloader] Failed to rename file");
+    remove(mDestPath.c_str());
+    if (rename(tempPath.c_str(), mDestPath.c_str()) != 0) {
+        std::lock_guard<std::mutex> lock(mMutex);
+        mErrorMessage = "Failed to rename temporary file";
+        FileLogger::GetInstance().LogError("[PluginDownloader] %s", mErrorMessage.c_str());
         remove(tempPath.c_str());
-        return false;
+        mState.store(PLUGIN_ERROR);
+        Screen::GetBgmNotification().ShowError("Plugin install failed: " + mErrorMessage);
+        if (mCompletionCallback) {
+            mCompletionCallback(false, mErrorMessage);
+        }
+        return;
     }
     
+    // 下载成功
     FileLogger::GetInstance().LogInfo("[PluginDownloader] Download completed successfully");
-    return true;
+    mState.store(PLUGIN_COMPLETE);
+    mProgress.store(1.0f);
+    
+    Screen::GetBgmNotification().ShowNowPlaying("StyleMiiU Plugin Downloaded");
+    
+    std::lock_guard<std::mutex> lock(mMutex);
+    if (mCompletionCallback) {
+        mCompletionCallback(true, mDestPath);
+    }
 }

@@ -1,0 +1,10 @@
+{
+  "sources": [
+    {
+      "name": "Themezer",
+      "graphqlUrl": "https://api.themezer.net/graphql",
+      "themeListQuery": "{ wiiu { themes(paginationArgs: { limit: 500, page: 1 }) { nodes { uuid name description downloadCount saveCount updatedAt creator { username } downloadUrl collagePreview { thumbUrl hdUrl } launcherScreenshot { thumbUrl hdUrl } waraWaraPlazaScreenshot { thumbUrl hdUrl } launcherBgUrl waraWaraPlazaBgUrl tags { name } } } } }",
+      "updateCheckQuery": "{ wiiu { themes(paginationArgs: { limit: 50, page: 1 }) { nodes { uuid updatedAt } } } }"
+    }
+  ]
+}

@@ -17,6 +17,15 @@
       "maxDisplayCount": 1
     },
     {
+      "id": "updatev035b",
+      "type": "update",
+      "title": "New Update Available!",
+      "text": "\n A new version of UTheme is available! \n Visit the GitHub releases page or HB-App Store to download \n the latest version.",
+      "version": "v0.3.5beta",
+      "duration": 15000,
+      "maxDisplayCount": 0
+    },
+    {
       "id": "aroma_update_alert",
       "type": "warning",
       "title": "Aroma Beta26 Compatibility",

@@ -131,7 +131,13 @@
     "press_to_clear": "Premi A per cancellare",
     "cache_cleared": "Cache cancellata",
     "restarting_app": "Uscita dall'applicazione...",
-    "developing": "Funzionalità in sviluppo"
+    "developing": "Funzione in sviluppo",
+    "select_source": "Seleziona fonte",
+    "active": "ATTIVO",
+    "no_sources": "Nessuna fonte disponibile.\nControlla la rete e riavvia.",
+    "dump_title": "Dump file di menu",
+    "dump_desc": "Backup dei file del menu di sistema Wii U su SD",
+    "dump_start": "A per dump"
   },
   "reboot": {
     "title": "Riavvia Sistema",
@@ -187,7 +193,13 @@
     "bgm_downloading": "Download BGM in corso...",
     "bgm_download_complete": "Download BGM completato!",
     "bgm_download_error": "Download BGM fallito",
-    "bgm_reloaded": "BGM ricaricato"
+    "bgm_reloaded": "BGM ricaricato",
+    "downloading": "Download plugin in corso...",
+    "next_page": "Pagina successiva",
+    "prev_page": "Pagina precedente",
+    "dumping": "Dump in corso...",
+    "dump_complete": "Dump completato!",
+    "dump_error": "Dump fallito"
   },
   "input": {
     "select": "Seleziona",

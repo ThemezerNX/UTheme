@@ -10,6 +10,7 @@
 #include <algorithm>
 
 const char* RemoteNotification::NOTIFICATION_URL = "https://raw.githubusercontent.com/Xziip/UTheme/main/notifications.json";
+const char* RemoteNotification::LOCAL_NOTIFICATION_PATH = "fs:/vol/external01/UTheme/notifications.json";
 const char* RemoteNotification::CACHE_FILE = "fs:/vol/external01/UTheme/temp/shown_notifications.txt";
 
 RemoteNotification& RemoteNotification::GetInstance() {
@@ -33,6 +34,28 @@ void RemoteNotification::Refresh() {
 }
 
 void RemoteNotification::FetchAndShow() {
+    // dev 模式下从 SD 卡读取本地通知文件（后台线程只读文件，主线程处理）
+    if (std::string(APP_VERSION_EXTRA) == "dev") {
+        FileLogger::GetInstance().LogInfo("[RemoteNotification] DEV mode - reading from SD card: %s", LOCAL_NOTIFICATION_PATH);
+        
+        std::ifstream file(LOCAL_NOTIFICATION_PATH);
+        if (!file.is_open()) {
+            FileLogger::GetInstance().LogError("[RemoteNotification] Failed to open local notification file: %s", LOCAL_NOTIFICATION_PATH);
+            return;
+        }
+        
+        std::string content((std::istreambuf_iterator<char>(file)), std::istreambuf_iterator<char>());
+        file.close();
+        
+        FileLogger::GetInstance().LogInfo("[RemoteNotification] Local file read: %zu bytes, queued for main thread", content.size());
+        
+        // 缓存到 pending，等主线程调用 ProcessPending 处理
+        std::lock_guard<std::mutex> lock(mPendingMutex);
+        mPendingJson = std::move(content);
+        return;
+    }
+    
+    // 正常模式：从网络获取
     FileLogger::GetInstance().LogInfo("[RemoteNotification] Fetching notifications from GitHub...");
     FileLogger::GetInstance().LogInfo("[RemoteNotification] URL: %s", NOTIFICATION_URL);
     
@@ -50,7 +73,7 @@ void RemoteNotification::FetchAndShow() {
     
     FileLogger::GetInstance().LogInfo("[RemoteNotification] Download operation created, adding to queue...");
     
-    // 设置完成回调（捕获 this 以便调用实例方法）
+    // 设置完成回调
     op->cb = [](DownloadOperation* op) {
         FileLogger::GetInstance().LogInfo("[RemoteNotification] Download callback triggered!");
         FileLogger::GetInstance().LogInfo("[RemoteNotification] Status: %d, HTTP code: %ld", 
@@ -63,70 +86,7 @@ void RemoteNotification::FetchAndShow() {
         }
         
         FileLogger::GetInstance().LogInfo("[RemoteNotification] Download complete, parsing JSON...");
-        
-        // 解析 JSON
-        rapidjson::Document doc;
-        doc.Parse(op->buffer.c_str());
-        
-        if (doc.HasParseError()) {
-            FileLogger::GetInstance().LogError("[RemoteNotification] JSON parse error");
-            delete op;
-            return;
-        }
-        
-        if (!doc.HasMember("messages") || !doc["messages"].IsArray()) {
-            FileLogger::GetInstance().LogError("[RemoteNotification] Invalid JSON structure");
-            delete op;
-            return;
-        }
-        
-        // 处理消息
-        auto& instance = RemoteNotification::GetInstance();
-        const auto& messages = doc["messages"];
-        bool hasNew = false;
-        
-        for (rapidjson::SizeType i = 0; i < messages.Size(); i++) {
-            const auto& msg = messages[i];
-            
-            if (!msg.HasMember("id") || !msg.HasMember("text")) continue;
-            
-            std::string id = msg["id"].GetString();
-            std::string text = msg["text"].GetString();
-            std::string type = msg.HasMember("type") ? msg["type"].GetString() : "info";
-            std::string title = msg.HasMember("title") ? msg["title"].GetString() : "";
-            std::string version = msg.HasMember("version") ? msg["version"].GetString() : "";
-            uint64_t duration = msg.HasMember("duration") ? msg["duration"].GetUint64() : 5000;
-            int maxDisplayCount = msg.HasMember("maxDisplayCount") ? msg["maxDisplayCount"].GetInt() : 1;
-            
-            // 检查是否应该显示
-            if (!instance.ShouldShowMessage(id, type, version, maxDisplayCount)) {
-                FileLogger::GetInstance().LogInfo("[RemoteNotification] Message %s skipped (version: %s, count limit reached)", 
-                    id.c_str(), version.c_str());
-                continue;
-            }
-            
-            // 显示通知
-            FileLogger::GetInstance().LogInfo("[RemoteNotification] Showing message: %s (type: %s, title: %s, version: %s, duration: %llums, maxCount: %d)", 
-                text.c_str(), type.c_str(), title.c_str(), version.c_str(), duration, maxDisplayCount);
-            
-            if (type == "warning") {
-                Screen::GetBgmNotification().ShowWarning(text, duration, title);
-            } else if (type == "error") {
-                Screen::GetBgmNotification().ShowError(text, duration, title);
-            } else {
-                // info 或 update 类型都使用 ShowInfo
-                Screen::GetBgmNotification().ShowInfo(text, duration, title);
-            }
-            
-            // 标记为已显示
-            instance.MarkAsShown(id, version);
-            hasNew = true;
-        }
-        
-        if (!hasNew) {
-            FileLogger::GetInstance().LogInfo("[RemoteNotification] No new messages");
-        }
-        
+        RemoteNotification::GetInstance().ProcessJson(op->buffer);
         delete op;
     };
     
@@ -134,6 +94,80 @@ void RemoteNotification::FetchAndShow() {
     FileLogger::GetInstance().LogInfo("[RemoteNotification] Adding download to queue...");
     queue->DownloadAdd(op);
     FileLogger::GetInstance().LogInfo("[RemoteNotification] Download added successfully, waiting for callback...");
+}
+
+void RemoteNotification::ProcessPending() {
+    std::string json;
+    {
+        std::lock_guard<std::mutex> lock(mPendingMutex);
+        if (mPendingJson.empty()) return;
+        json = std::move(mPendingJson);
+        mPendingJson.clear();
+    }
+    
+    FileLogger::GetInstance().LogInfo("[RemoteNotification] Processing pending notification (%zu bytes) on main thread", json.size());
+    ProcessJson(json);
+}
+
+void RemoteNotification::ProcessJson(const std::string& jsonContent) {
+    // 解析 JSON
+    rapidjson::Document doc;
+    doc.Parse(jsonContent.c_str());
+    
+    if (doc.HasParseError()) {
+        FileLogger::GetInstance().LogError("[RemoteNotification] JSON parse error");
+        return;
+    }
+    
+    if (!doc.HasMember("messages") || !doc["messages"].IsArray()) {
+        FileLogger::GetInstance().LogError("[RemoteNotification] Invalid JSON structure");
+        return;
+    }
+    
+    // 处理消息
+    const auto& messages = doc["messages"];
+    bool hasNew = false;
+    
+    for (rapidjson::SizeType i = 0; i < messages.Size(); i++) {
+        const auto& msg = messages[i];
+        
+        if (!msg.HasMember("id") || !msg.HasMember("text")) continue;
+        
+        std::string id = msg["id"].GetString();
+        std::string text = msg["text"].GetString();
+        std::string type = msg.HasMember("type") ? msg["type"].GetString() : "info";
+        std::string title = msg.HasMember("title") ? msg["title"].GetString() : "";
+        std::string version = msg.HasMember("version") ? msg["version"].GetString() : "";
+        uint64_t duration = msg.HasMember("duration") ? msg["duration"].GetUint64() : 5000;
+        int maxDisplayCount = msg.HasMember("maxDisplayCount") ? msg["maxDisplayCount"].GetInt() : 1;
+        
+        // 检查是否应该显示
+        if (!ShouldShowMessage(id, type, version, maxDisplayCount)) {
+            FileLogger::GetInstance().LogInfo("[RemoteNotification] Message %s skipped (version: %s, count limit reached)", 
+                id.c_str(), version.c_str());
+            continue;
+        }
+        
+        // 显示通知
+        FileLogger::GetInstance().LogInfo("[RemoteNotification] Showing message: %s (type: %s, title: %s, version: %s, duration: %llums, maxCount: %d)", 
+            text.c_str(), type.c_str(), title.c_str(), version.c_str(), duration, maxDisplayCount);
+        
+        if (type == "warning") {
+            Screen::GetBgmNotification().ShowWarning(text, duration, title);
+        } else if (type == "error") {
+            Screen::GetBgmNotification().ShowError(text, duration, title);
+        } else {
+            Screen::GetBgmNotification().ShowInfo(text, duration, title);
+        }
+        
+        // 标记为已显示
+        MarkAsShown(id, version);
+        hasNew = true;
+    }
+    
+    if (!hasNew) {
+        FileLogger::GetInstance().LogInfo("[RemoteNotification] No new messages");
+    }
 }
 
 bool RemoteNotification::ShouldShowMessage(const std::string& id, const std::string& type, 

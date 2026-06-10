@@ -135,6 +135,9 @@ int main(int argc, char const *argv[]) {
     
     // 启动远程通知检查（异步，不阻塞）
     RemoteNotification::GetInstance().CheckOnStartup();
+    
+    // 从远程 api.json 同步 API 配置（异步，不阻塞）
+    Config::GetInstance().SyncApiSources();
 
     CombinedInput baseInput;
     VPadInput vpadInput;
@@ -175,6 +178,9 @@ int main(int argc, char const *argv[]) {
             
             // Update music player
             MusicPlayer::GetInstance().Update();
+            
+            // Process pending remote notifications (dev mode local file)
+            RemoteNotification::GetInstance().ProcessPending();
             
             // Update BGM notification
             Screen::UpdateBgmNotification();

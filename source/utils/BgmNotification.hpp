@@ -51,17 +51,34 @@ private:
         std::string message;
         Animation fadeAnim;
         Animation slideAnim;
+        Animation yAnim;         // Y 位置动画（通知消失后下方通知平滑上移）
         uint64_t showTime;
         uint64_t displayDuration;
-        int yPosition;  // 在屏幕上的Y位置
+        int yPosition;  // 当前 Y 位置（由 yAnim 驱动）
+        int targetY;    // 目标 Y 位置
+        
+        // 自动换行支持
+        std::vector<std::string> wrappedTitleLines;
+        std::vector<std::string> wrappedMessageLines;
+        int actualHeight;  // 动态计算的实际高度
     };
     
     std::vector<Notification> mNotifications;
     
     void AddNotification(NotificationType type, const std::string& text1, const std::string& text2 = "", uint64_t displayMs = 4000, const std::string& title = "");
     void DrawNotification(const Notification& notif, int x, int y, float fadeAlpha, float slideOffset);
+    void RecalculateTargetPositions();  // 重新计算所有通知的目标 Y 位置
+    
+    // 文本换行辅助
+    static std::vector<std::string> WrapText(const std::string& text, int fontSize, int maxWidth);
+    static int CalculateNotificationHeight(const Notification& notif);
     
     static const int NOTIFICATION_WIDTH = 500;
-    static const int NOTIFICATION_HEIGHT = 90;
+    static const int NOTIFICATION_MIN_HEIGHT = 90;
     static const int NOTIFICATION_SPACING = 10;  // 通知之间的间距
+    static const int TEXT_AREA_LEFT = 70;   // 文字区域左边界（相对于通知框）
+    static const int TEXT_AREA_PADDING = 20; // 文字区域右内边距
+    static const int NOTIF_TOP_PAD = 25;    // 顶部内边距
+    static const int NOTIF_BOT_PAD = 20;    // 底部内边距
+    static const int LINE_GAP = 6;          // 行间距
 };

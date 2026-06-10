@@ -131,7 +131,13 @@
     "press_to_clear": "Naciśnij A, aby wyczyścić",
     "cache_cleared": "Pamięć podręczna wyczyszczona",
     "restarting_app": "Zamykanie programu...",
-    "developing": "Funkcja w opracowaniu"
+    "developing": "Funkcja w opracowaniu",
+    "select_source": "Wybierz zrodlo",
+    "active": "AKTYWNE",
+    "no_sources": "Brak dostepnych zrodel.\nSprawdz siec i uruchom ponownie.",
+    "dump_title": "Zrzuć pliki menu",
+    "dump_desc": "Kopia zapasowa plików menu systemowego Wii U na SD",
+    "dump_start": "A aby zrzucić"
   },
   "reboot": {
     "title": "Uruchom Ponownie System",
@@ -187,7 +193,13 @@
     "bgm_downloading": "Pobieranie BGM...",
     "bgm_download_complete": "Pobieranie BGM zakończone!",
     "bgm_download_error": "Błąd pobierania BGM",
-    "bgm_reloaded": "BGM przeładowany"
+    "bgm_reloaded": "BGM przeładowane",
+    "downloading": "Pobieranie wtyczki...",
+    "next_page": "Następna strona",
+    "prev_page": "Poprzednia strona",
+    "dumping": "Zrzucanie...",
+    "dump_complete": "Zrzut zakończony!",
+    "dump_error": "Zrzut nieudany"
   },
   "input": {
     "select": "Wybierz",

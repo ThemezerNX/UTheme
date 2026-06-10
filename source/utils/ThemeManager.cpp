@@ -1,5 +1,6 @@
 #include "ThemeManager.hpp"
 #include "ThemeDownloader.hpp"
+#include "Config.hpp"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/stringbuffer.h"
@@ -19,8 +20,11 @@
 #include <unistd.h>
 #include <chrono>
 
-// Themezer GraphQL API URL
-#define THEMEZER_GRAPHQL_URL "https://api.themezer.net/graphql"
+// GraphQL API URL — 从 Config 获取（自定义 > 选中源 > 硬编码默认）
+static std::string GetGraphQLUrl() {
+    return Config::GetInstance().GetGraphQLUrl();
+}
+
 #define THEMEZER_CDN_URL "https://cdn.themezer.net"
 #define CACHE_DIR "fs:/vol/external01/UTheme/temp"
 #define CACHE_FILE "fs:/vol/external01/UTheme/temp/themes_cache.json"
@@ -354,11 +358,19 @@ void ThemeManager::FetchThemes() {
     DEBUG_FUNCTION_LINE("Fetching themes from Themezer GraphQL API (ASYNC)");
     FileLogger::GetInstance().LogInfo("Starting async FetchThemes");
     
+<<<<<<< Updated upstream
     // 构造 GraphQL 查询 (包含图片URL) - 设置limit为200以获取更多主题
     // API 已更新: wiiuThemes 已改为 wiiu { themes(paginationArgs: { limit, page }) }
     std::string query = R"({
         "query": "{ wiiu { themes(paginationArgs: { limit: 500, page: 1 }) { nodes { uuid name description downloadCount saveCount updatedAt creator { username } downloadUrl collagePreview { thumbUrl hdUrl } launcherScreenshot { thumbUrl hdUrl } waraWaraPlazaScreenshot { thumbUrl hdUrl } launcherBgUrl waraWaraPlazaBgUrl tags { name } } } } }"
     })";
+=======
+    // 构造 GraphQL 查询 — 优先从 Config 读取（远程同步/用户自定义），回退硬编码
+    const char* defaultQuery = "{ wiiu { themes(paginationArgs: { limit: 500, page: 1 }) { nodes { uuid name description downloadCount saveCount updatedAt creator { username } downloadUrl collagePreview { thumbUrl hdUrl } launcherScreenshot { thumbUrl hdUrl } waraWaraPlazaScreenshot { thumbUrl hdUrl } launcherBgUrl waraWaraPlazaBgUrl tags { name } } } } }";
+    std::string cfgQuery = Config::GetInstance().GetGraphQLQuery();
+    const std::string& gql = cfgQuery.empty() ? defaultQuery : cfgQuery;
+    std::string query = std::string("{\"query\":\"") + gql + "\"}";
+>>>>>>> Stashed changes
     
     // 使用 DownloadQueue 进行异步请求
     if (!DownloadQueue::GetInstance()) {
@@ -372,7 +384,7 @@ void ThemeManager::FetchThemes() {
     
     // 创建下载操作
     mFetchOp = new DownloadOperation();
-    mFetchOp->url = THEMEZER_GRAPHQL_URL;
+    mFetchOp->url = GetGraphQLUrl();
     mFetchOp->postData = query;  // GraphQL 查询作为 POST 数据
     
     // 设置回调
@@ -939,12 +951,20 @@ void ThemeManager::CheckForUpdates() {
     
     FileLogger::GetInstance().LogInfo("Checking for theme updates...");
     
+<<<<<<< Updated upstream
     // 构造 GraphQL 查询 (只获取基本信息用于对比)
     std::string query = R"({
         "query": "{ wiiu { themes(paginationArgs: { limit: 50, page: 1 }) { nodes { uuid updatedAt } } } }"
     })";
+=======
+    // 构造 GraphQL 查询 (只获取基本信息用于对比) — 从 Config 读取，回退默认
+    const char* defaultUpdateQuery = "{ wiiu { themes(paginationArgs: { limit: 50, page: 1 }) { nodes { uuid updatedAt } } } }";
+    std::string cfgUpdateQuery = Config::GetInstance().GetUpdateCheckQuery();
+    const std::string& gql = cfgUpdateQuery.empty() ? defaultUpdateQuery : cfgUpdateQuery;
+    std::string query = "{\"query\":\"" + gql + "\"}";
+>>>>>>> Stashed changes
     
-    std::string response = FetchUrl(THEMEZER_GRAPHQL_URL, query);
+    std::string response = FetchUrl(GetGraphQLUrl(), query);
     
     if (response.empty()) {
         mCheckingUpdates = false;

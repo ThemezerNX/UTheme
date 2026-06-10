@@ -131,7 +131,13 @@
     "press_to_clear": "Appuyez sur A pour effacer",
     "cache_cleared": "Cache effacé",
     "restarting_app": "Fermeture de l'application...",
-    "developing": "Fonctionnalité en développement"
+    "developing": "Fonctionnalité en développement",
+    "select_source": "Choisir la source",
+    "active": "ACTIF",
+    "no_sources": "Aucune source disponible.\nVérifiez le réseau et redémarrez.",
+    "dump_title": "Sauvegarder fichiers menu",
+    "dump_desc": "Sauvegarder les fichiers du menu système Wii U sur SD",
+    "dump_start": "A pour sauvegarder"
   },
   "reboot": {
     "title": "Redémarrer le système",
@@ -187,7 +193,13 @@
     "bgm_downloading": "Téléchargement du BGM...",
     "bgm_download_complete": "BGM téléchargé!",
     "bgm_download_error": "Échec du téléchargement du BGM",
-    "bgm_reloaded": "BGM rechargé"
+    "bgm_reloaded": "BGM rechargé",
+    "downloading": "Téléchargement du plugin...",
+    "next_page": "Page suivante",
+    "prev_page": "Page précédente",
+    "dumping": "Sauvegarde...",
+    "dump_complete": "Sauvegarde terminée !",
+    "dump_error": "Échec de la sauvegarde"
   },
   "input": {
     "select": "Sélectionner",

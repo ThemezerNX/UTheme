@@ -131,7 +131,13 @@
     "press_to_clear": "A를 눌러 지우기",
     "cache_cleared": "캐시가 지워졌습니다",
     "restarting_app": "애플리케이션 종료 중...",
-    "developing": "기능 개발 중"
+    "developing": "기능 개발 중",
+    "select_source": "데이터 소스 선택",
+    "active": "사용 중",
+    "no_sources": "사용 가능한 소스가 없습니다.\n네트워크를 확인하고 다시 시작하세요.",
+    "dump_title": "메뉴 파일 덤프",
+    "dump_desc": "Wii U 시스템 메뉴 파일을 SD 카드에 백업",
+    "dump_start": "A을 눌러 덤프"
   },
   "reboot": {
     "title": "시스템 재부팅",
@@ -187,7 +193,13 @@
     "bgm_downloading": "BGM 다운로드 중...",
     "bgm_download_complete": "BGM 다운로드 완료!",
     "bgm_download_error": "BGM 다운로드 실패",
-    "bgm_reloaded": "BGM 다시 로드됨"
+    "bgm_reloaded": "BGM 재로드됨",
+    "downloading": "플러그인 다운로드 중...",
+    "next_page": "다음 페이지",
+    "prev_page": "이전 페이지",
+    "dumping": "덤프 중...",
+    "dump_complete": "덤프 완료!",
+    "dump_error": "덤프 실패"
   },
   "input": {
     "select": "선택",

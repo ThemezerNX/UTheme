@@ -131,7 +131,13 @@
     "press_to_clear": "Нажмите A для очистки",
     "cache_cleared": "Кэш очищен",
     "restarting_app": "Выход из программы...",
-    "developing": "Функция в разработке"
+    "developing": "Функция в разработке",
+    "select_source": "Выбор источника",
+    "active": "АКТИВЕН",
+    "no_sources": "Нет доступных источников.\nПроверьте сеть и перезапустите.",
+    "dump_title": "Дамп файлов меню",
+    "dump_desc": "Резервное копирование файлов меню Wii U на SD-карту",
+    "dump_start": "A для дампа"
   },
   "reboot": {
     "title": "Перезагрузка системы",
@@ -187,7 +193,13 @@
     "bgm_downloading": "Загрузка BGM...",
     "bgm_download_complete": "Загрузка BGM завершена!",
     "bgm_download_error": "Ошибка загрузки BGM",
-    "bgm_reloaded": "BGM перезагружена"
+    "bgm_reloaded": "BGM перезагружен",
+    "downloading": "Загрузка плагина...",
+    "next_page": "След. страница",
+    "prev_page": "Пред. страница",
+    "dumping": "Дамп...",
+    "dump_complete": "Дамп завершён!",
+    "dump_error": "Ошибка дампа"
   },
   "input": {
     "select": "Выбрать",

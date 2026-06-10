@@ -135,7 +135,13 @@
     "press_to_clear": "Press A to Clear",
     "cache_cleared": "Cache cleared",
     "restarting_app": "Exiting application...",
-    "developing": "Feature in development"
+    "developing": "Feature in development",
+    "select_source": "Select Theme Source",
+    "active": "ACTIVE",
+    "no_sources": "No sources available.\nCheck network and restart.",
+    "dump_title": "Dump Menu Files",
+    "dump_desc": "Backup Wii U system menu files to SD card",
+    "dump_start": "Press A to Dump"
   },
   "reboot": {
     "title": "Reboot System",
@@ -191,7 +197,13 @@
     "bgm_downloading": "Downloading BGM...",
     "bgm_download_complete": "BGM Downloaded!",
     "bgm_download_error": "BGM Download Failed",
-    "bgm_reloaded": "BGM Reloaded"
+    "bgm_reloaded": "BGM Reloaded",
+    "downloading": "Downloading plugin...",
+    "next_page": "Next Page",
+    "prev_page": "Prev Page",
+    "dumping": "Dumping...",
+    "dump_complete": "Dump Complete!",
+    "dump_error": "Dump Failed"
   },
   "input": {
     "select": "Select",

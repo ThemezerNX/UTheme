@@ -131,7 +131,13 @@
     "press_to_clear": "按 A 清除",
     "cache_cleared": "快取已清除",
     "restarting_app": "正在結束程式...",
-    "developing": "功能開發中"
+    "developing": "功能開發中",
+    "select_source": "選擇資料源",
+    "active": "當前",
+    "no_sources": "暫無可選資料源\n請檢查網絡後重啟",
+    "dump_title": "轉儲菜單文件",
+    "dump_desc": "備份 Wii U 系統菜單文件到 SD 卡",
+    "dump_start": "按 A 開始轉儲"
   },
   "reboot": {
     "title": "重新啟動系統",
@@ -187,7 +193,13 @@
     "bgm_downloading": "正在下載BGM...",
     "bgm_download_complete": "BGM下載完成!",
     "bgm_download_error": "BGM下載失敗",
-    "bgm_reloaded": "BGM已重新載入"
+    "bgm_reloaded": "BGM已重新載入",
+    "downloading": "正在下載插件",
+    "next_page": "下一頁",
+    "prev_page": "上一頁",
+    "dumping": "正在轉儲...",
+    "dump_complete": "轉儲完成！",
+    "dump_error": "轉儲失敗"
   },
   "input": {
     "select": "選擇",

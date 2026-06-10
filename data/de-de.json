@@ -131,7 +131,13 @@
     "press_to_clear": "Drücken Sie A zum Leeren",
     "cache_cleared": "Cache geleert",
     "restarting_app": "Anwendung wird beendet...",
-    "developing": "Funktion in Entwicklung"
+    "developing": "Funktion in Entwicklung",
+    "select_source": "Datenquelle wählen",
+    "active": "AKTIV",
+    "no_sources": "Keine Quellen verfügbar.\nNetzwerk prüfen und neu starten.",
+    "dump_title": "Menüdateien sichern",
+    "dump_desc": "Wii U Systemmenü-Dateien auf SD-Karte sichern",
+    "dump_start": "A zum Sichern"
   },
   "reboot": {
     "title": "System neu starten",
@@ -187,7 +193,13 @@
     "bgm_downloading": "BGM wird heruntergeladen...",
     "bgm_download_complete": "BGM heruntergeladen!",
     "bgm_download_error": "BGM-Download fehlgeschlagen",
-    "bgm_reloaded": "BGM neu geladen"
+    "bgm_reloaded": "BGM neu geladen",
+    "downloading": "Plugin wird heruntergeladen...",
+    "next_page": "Nächste Seite",
+    "prev_page": "Vorherige Seite",
+    "dumping": "Speichere...",
+    "dump_complete": "Speichern abgeschlossen!",
+    "dump_error": "Speichern fehlgeschlagen"
   },
   "input": {
     "select": "Auswählen",

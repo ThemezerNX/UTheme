@@ -131,7 +131,13 @@
     "press_to_clear": "Druk op A om te wissen",
     "cache_cleared": "Cache gewist",
     "restarting_app": "Programma afsluiten...",
-    "developing": "Functie in ontwikkeling"
+    "developing": "Functie in ontwikkeling",
+    "select_source": "Selecteer gegevensbron",
+    "active": "ACTIEF",
+    "no_sources": "Geen bronnen beschikbaar.\nControleer netwerk en herstart.",
+    "dump_title": "Menubestanden dumpen",
+    "dump_desc": "Back-up van Wii U systeemmenubestanden naar SD-kaart",
+    "dump_start": "A om te dumpen"
   },
   "reboot": {
     "title": "Systeem Herstarten",
@@ -187,7 +193,13 @@
     "bgm_downloading": "BGM downloaden...",
     "bgm_download_complete": "BGM-download voltooid!",
     "bgm_download_error": "BGM-downloadfout",
-    "bgm_reloaded": "BGM opnieuw geladen"
+    "bgm_reloaded": "BGM opnieuw geladen",
+    "downloading": "Plugin downloaden...",
+    "next_page": "Volgende pagina",
+    "prev_page": "Vorige pagina",
+    "dumping": "Dumpen...",
+    "dump_complete": "Dump voltooid!",
+    "dump_error": "Dump mislukt"
   },
   "input": {
     "select": "Selecteren",

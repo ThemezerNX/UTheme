@@ -131,7 +131,13 @@
     "press_to_clear": "Aボタンでクリア",
     "cache_cleared": "キャッシュをクリアしました",
     "restarting_app": "アプリを終了しています...",
-    "developing": "機能開発中"
+    "developing": "機能開発中",
+    "select_source": "データソースを選択",
+    "active": "使用中",
+    "no_sources": "利用可能なソースがありません。\nネットワークを確認して再起動してください。"
+    "dump_title": "メニューファイルをダンプ",
+    "dump_desc": "Wii U システムメニューファイルをSDカードにバックアップ",
+    "dump_start": "A でダンプ開始"
   },
   "reboot": {
     "title": "システム再起動",
@@ -187,7 +193,13 @@
     "bgm_downloading": "BGMダウンロード中...",
     "bgm_download_complete": "BGMダウンロード完了!",
     "bgm_download_error": "BGMダウンロード失敗",
-    "bgm_reloaded": "BGMを再読み込みしました"
+    "bgm_reloaded": "BGMを再読み込みしました",
+    "downloading": "プラグインをダウンロード中...",
+    "next_page": "次のページ",
+    "prev_page": "前のページ",
+    "dumping": "ダンプ中...",
+    "dump_complete": "ダンプ完了！",
+    "dump_error": "ダンプ失敗"
   },
   "input": {
     "select": "選択",

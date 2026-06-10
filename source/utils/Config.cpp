@@ -1,8 +1,12 @@
 #include "Config.hpp"
+#include "FileLogger.hpp"
 #include <fstream>
 #include <cstdio>
 #include <cstring>
 #include <sys/stat.h>
+#include <thread>
+#include <curl/curl.h>
+#include "rapidjson/document.h"
 
 Config::Config() 
     : mLoggingEnabled(false)
@@ -12,6 +16,10 @@ Config::Config()
     , mAutoInstall(true)
     , mBgmEnabled(true)   // 默认开启背景音乐
     , mBgmUrl("https://raw.githubusercontent.com/xziip/utheme/main/data/BGM.mp3")  // 默认BGM下载地址
+    , mActiveSource(0)
+    , mCustomGraphQLUrl("")
+    , mCustomGraphQLQuery("")
+    , mCustomUpdateCheckQuery("")
     , mHasShownTouchHint(false)  // 默认未显示触摸提示
     , mHasShownLanguageSwitchHint(false)  // 默认未显示语言切换提示
     , mThemeChanged(false)  // 默认主题未更改（运行时标志）
@@ -77,6 +85,58 @@ void Config::SetBgmUrl(const std::string& url) {
     }
 }
 
+void Config::SetCustomGraphQLUrl(const std::string& url) {
+    if (mCustomGraphQLUrl != url) {
+        mCustomGraphQLUrl = url;
+        Save();
+    }
+}
+
+void Config::SetCustomGraphQLQuery(const std::string& query) {
+    if (mCustomGraphQLQuery != query) {
+        mCustomGraphQLQuery = query;
+        Save();
+    }
+}
+
+void Config::SetCustomUpdateCheckQuery(const std::string& query) {
+    if (mCustomUpdateCheckQuery != query) {
+        mCustomUpdateCheckQuery = query;
+        Save();
+    }
+}
+
+void Config::SetActiveSource(int index) {
+    if (index >= 0 && index < (int)mSources.size() && mActiveSource != index) {
+        mActiveSource = index;
+        Save();
+    }
+}
+
+const ThemeSource& Config::GetCurrentSource() const {
+    static ThemeSource fallback = {"Themezer", "https://api.themezer.net/graphql",
+        "{ wiiu { themes(paginationArgs: { limit: 500, page: 1 }) { nodes { uuid name description downloadCount saveCount updatedAt creator { username } downloadUrl collagePreview { thumbUrl hdUrl } launcherScreenshot { thumbUrl hdUrl } waraWaraPlazaScreenshot { thumbUrl hdUrl } launcherBgUrl waraWaraPlazaBgUrl tags { name } } } } }",
+        "{ wiiu { themes(paginationArgs: { limit: 50, page: 1 }) { nodes { uuid updatedAt } } } }"};
+    if (mActiveSource >= 0 && mActiveSource < (int)mSources.size())
+        return mSources[mActiveSource];
+    return fallback;
+}
+
+std::string Config::GetGraphQLUrl() const {
+    if (!mCustomGraphQLUrl.empty()) return mCustomGraphQLUrl;
+    return GetCurrentSource().graphqlUrl;
+}
+
+std::string Config::GetGraphQLQuery() const {
+    if (!mCustomGraphQLQuery.empty()) return mCustomGraphQLQuery;
+    return GetCurrentSource().themeListQuery;
+}
+
+std::string Config::GetUpdateCheckQuery() const {
+    if (!mCustomUpdateCheckQuery.empty()) return mCustomUpdateCheckQuery;
+    return GetCurrentSource().updateCheckQuery;
+}
+
 void Config::SetTouchHintShown(bool shown) {
     if (mHasShownTouchHint != shown) {
         mHasShownTouchHint = shown;
@@ -124,6 +184,14 @@ bool Config::Load() {
             mHasShownTouchHint = (line[10] == '1');
         } else if (strncmp(line, "languageswitchhint=", 19) == 0) {
             mHasShownLanguageSwitchHint = (line[19] == '1');
+        } else if (strncmp(line, "source=", 7) == 0) {
+            mActiveSource = atoi(&line[7]);
+        } else if (strncmp(line, "customapiurl=", 13) == 0) {
+            mCustomGraphQLUrl = &line[13];
+        } else if (strncmp(line, "customquery=", 12) == 0) {
+            mCustomGraphQLQuery = &line[12];
+        } else if (strncmp(line, "customupdatequery=", 18) == 0) {
+            mCustomUpdateCheckQuery = &line[18];
         }
     }
     
@@ -169,6 +237,14 @@ bool Config::Save() {
     fprintf(file, "bgmurl=%s\n", mBgmUrl.c_str());
     fprintf(file, "\n");
     
+    fprintf(file, "# Theme source index\n");
+    fprintf(file, "source=%d\n", mActiveSource);
+    fprintf(file, "# Custom override (empty = use source)\n");
+    fprintf(file, "customapiurl=%s\n", mCustomGraphQLUrl.c_str());
+    fprintf(file, "customquery=%s\n", mCustomGraphQLQuery.c_str());
+    fprintf(file, "customupdatequery=%s\n", mCustomUpdateCheckQuery.c_str());
+    fprintf(file, "\n");
+    
     fprintf(file, "# Touch hint shown\n");
     fprintf(file, "touchhint=%d\n", mHasShownTouchHint ? 1 : 0);
     fprintf(file, "\n");
@@ -178,4 +254,49 @@ bool Config::Save() {
     
     fclose(file);
     return true;
+}
+
+// 从 api.json 同步数据源列表（异步，不阻塞启动）
+void Config::SyncApiSources() {
+    std::thread([this]() {
+        const char* url = "https://raw.githubusercontent.com/Xziip/UTheme/main/api.json";
+        FileLogger::GetInstance().LogInfo("[Config] Fetching remote api.json for sources...");
+        
+        CURL* curl = curl_easy_init();
+        if (!curl) return;
+        
+        std::string response;
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION,
+            +[](void* c, size_t s, size_t n, void* u) -> size_t {
+                ((std::string*)u)->append((char*)c, s*n); return s*n;
+            });
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+        curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+        curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+        curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
+        curl_easy_setopt(curl, CURLOPT_USERAGENT, "UTheme/1.0");
+        
+        CURLcode res = curl_easy_perform(curl);
+        long httpCode = 0;
+        curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpCode);
+        curl_easy_cleanup(curl);
+        
+        if (res != CURLE_OK || httpCode != 200) return;
+        
+        rapidjson::Document doc;
+        doc.Parse(response.c_str());
+        if (doc.HasParseError() || !doc.HasMember("sources") || !doc["sources"].IsArray()) return;
+        
+        mSources.clear();
+        for (auto& s : doc["sources"].GetArray()) {
+            ThemeSource src;
+            if (s.HasMember("name")) src.name = s["name"].GetString();
+            if (s.HasMember("graphqlUrl")) src.graphqlUrl = s["graphqlUrl"].GetString();
+            if (s.HasMember("themeListQuery")) src.themeListQuery = s["themeListQuery"].GetString();
+            if (s.HasMember("updateCheckQuery")) src.updateCheckQuery = s["updateCheckQuery"].GetString();
+            mSources.push_back(src);
+        }
+        FileLogger::GetInstance().LogInfo("[Config] Synced %zu sources from remote", mSources.size());
+    }).detach();
 }
